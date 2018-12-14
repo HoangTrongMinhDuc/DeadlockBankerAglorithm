@@ -9,6 +9,7 @@ import java.awt.event.ActionListener;
 import java.util.ArrayList;
 
 public class Main extends JFrame implements ActionListener {
+    private boolean DEBUG = true;
     private JPanel container;
     private JTextField txtNumProccess;
     private JTextField txtNumRes;
@@ -20,9 +21,11 @@ public class Main extends JFrame implements ActionListener {
     private JTable tableAllo = null;
     private JScrollPane scrollAllo = null;
     private JButton btnSolve;
-    private int nProcesses = 3;
+    private int nProcesses = 4;
     private int nRes = 3;
     private JLabel lbStatus;
+    private DefaultListModel<String> model;
+
     public static void main(String[] args) {
         try {
 //            UIManager.setLookAndFeel("com.sun.java.swing.plaf.windows.WindowsLookAndFeel");
@@ -49,7 +52,7 @@ public class Main extends JFrame implements ActionListener {
         tablePanel.setMinimumSize(tablePanel.getPreferredSize());
         tablePanel.setMaximumSize(tablePanel.getPreferredSize());
         container.add(tablePanel);
-        createTable(3, 3);
+        createTable(4, 3);
 
         container.add(Box.createRigidArea(new Dimension(0, 10)));
         alloPanel = new JPanel();
@@ -57,7 +60,7 @@ public class Main extends JFrame implements ActionListener {
         alloPanel.setMaximumSize(alloPanel.getPreferredSize());
         alloPanel.setMinimumSize(alloPanel.getPreferredSize());
         container.add(alloPanel);
-        createAllocateInput(3, 3);
+        createAllocateInput(4, 3);
 
         container.add(Box.createRigidArea(new Dimension(0, 10)));
         Box solveBox = Box.createHorizontalBox();
@@ -74,6 +77,17 @@ public class Main extends JFrame implements ActionListener {
         statusBox.add(Box.createHorizontalGlue());
         container.add(statusBox);
 
+        Box statesBox = Box.createVerticalBox();
+        Box lbBox = Box.createHorizontalBox();
+        lbBox.add(new JLabel("List safe state: "));
+        lbBox.add(Box.createHorizontalGlue());
+        statesBox.add(lbBox);
+        model = new DefaultListModel<>();
+        JList<String> listState = new JList<>(model);
+        DefaultListCellRenderer renderer = (DefaultListCellRenderer) listState.getCellRenderer();
+        renderer.setHorizontalAlignment(SwingConstants.CENTER);
+        statesBox.add(new JScrollPane(listState));
+        container.add(statesBox);
         this.add(container);
     }
 
@@ -163,7 +177,7 @@ public class Main extends JFrame implements ActionListener {
     }
 
     private void initFrame(){
-
+        this.container.setBackground(Color.WHITE);
         this.setSize(720, 480);
         this.setVisible(true);
         this.setTitle("Banker's Algorithm");
@@ -200,6 +214,8 @@ public class Main extends JFrame implements ActionListener {
             }
             this.nProcesses =nPro;
             this.nRes = nRes;
+            this.lbStatus.setText("");
+            this.model.clear();
             createTable(nPro, nRes);
             createAllocateInput(nPro, nRes);
             System.out.println("Created");
@@ -223,24 +239,6 @@ public class Main extends JFrame implements ActionListener {
                         avaRes[j-nRes*2-1] = Integer.parseInt(this.tableData.getModel().getValueAt(i, j).toString());
                     }
                 }
-                int[][] allocated = { { 0, 1, 0 }, { 2, 0, 0 }, { 3, 0, 2 }, { 2, 1, 1 } };
-                int[][] max = { { 7, 5, 3 }, { 3, 2, 2 }, { 9, 0, 2 }, { 2, 2, 2 } };
-                int[] aval = {3, 3, 4};
-                for(int i = 0; i < maxRes.length; i++){
-                    for(int j = 0; j < maxRes[0].length; j++){
-                        System.out.print(maxRes[i][j]+"\t");
-                    }
-                    System.out.println();
-                }
-                for(int i = 0; i < maxRes.length; i++){
-                    for(int j = 0; j < maxRes[0].length; j++){
-                        System.out.print(aloRes[i][j]+"\t");
-                    }
-                    System.out.println();
-                }
-                for(int i = 0; i < avaRes.length; i++)
-                    System.out.print(avaRes[i]+"\t");
-                System.out.println();
                 Banker banker = null;
                 if(this.tableAllo.getValueAt(0, 0) != null){
                     String process = this.tableAllo.getValueAt(0,0).toString();
@@ -249,7 +247,7 @@ public class Main extends JFrame implements ActionListener {
                     for(int i = 1; i < nRes+1; i++){
                         reqRes[i-1] = Integer.parseInt(this.tableAllo.getValueAt(0, i).toString());
                     }
-                    banker = new Banker(maxRes, aloRes, avaRes, idProc-1, reqRes);
+                    banker = new Banker(maxRes, aloRes, avaRes, idProc, reqRes);
                     for(int i = 0; i < banker.getListSafeSate().size(); i++){
                         System.out.println(banker.getListSafeSate().get(i));
                     }
@@ -259,13 +257,37 @@ public class Main extends JFrame implements ActionListener {
                         System.out.println(banker.getListSafeSate().get(i));
                     }
                 }
-                ArrayList<String> listSafeState = banker.getListSafeSate();
-                if(listSafeState.size() == 0){
-                    lbStatus.setText("System in deadlock");
-                    lbStatus.setForeground(Color.red);
-                }else {
-                    lbStatus.setText("System in safe state");
-                    lbStatus.setForeground(Color.green);
+
+                int status = banker.getSystemStatus();
+                this.model.clear();
+                switch (status){
+                    case 1:{
+                        lbStatus.setText("System in safe state");
+                        lbStatus.setForeground(Color.green);
+                        ArrayList<String> listSafeState = banker.getListSafeSate();
+                        for(String str : listSafeState){
+                            this.model.addElement(str);
+                        }
+                        break;
+                    }
+                    case 2:{
+                        lbStatus.setText("System in deadlock. Request allocate more than the number of resources available.");
+                        lbStatus.setForeground(Color.red);
+                        this.model.addElement("No safe state can be found");
+                        break;
+                    }
+                    case 3:{
+                        lbStatus.setText("System in wrong state. Maximum resource less than total allocation resource.");
+                        lbStatus.setForeground(Color.ORANGE);
+                        this.model.addElement("No safe state can be found");
+                        break;
+                    }
+                    default:{
+                        lbStatus.setText("System in deadlock");
+                        lbStatus.setForeground(Color.red);
+                        this.model.addElement("No safe state can be found");
+                        break;
+                    }
                 }
             }
         }
@@ -304,6 +326,28 @@ public class Main extends JFrame implements ActionListener {
 
                 }
             }
+            if(nPro == 4 && nRes == 3 && DEBUG){
+                int[][] allocated = { { 0, 1, 0 }, { 2, 0, 0 }, { 3, 0, 2 }, { 2, 1, 1 } };
+                int[][] max = { { 7, 5, 3 }, { 3, 2, 2 }, { 9, 0, 2 }, { 2, 2, 2 } };
+                int[] aval = {3, 3, 4};
+                for(int i = 0; i < nPro ; i++){
+                    for(int j = 1; j < nRes+1; j++){
+                        data[i][j] = max[i][j-1];
+                    }
+                }
+                for(int i = 0; i < nPro ; i++){
+                    for(int j = nRes+1; j < nRes*2+1; j++){
+                        data[i][j] = allocated[i][j-nRes-1];
+                    }
+                }
+                for(int i = 0; i < 1 ; i++){
+                    for(int j = nRes*2+1; j < nRes*3+1; j++){
+                        data[i][j] = aval[j-nRes*2-1];
+                    }
+                }
+            }
+
+
         }
         public int getColumnCount() {
             return title.length;

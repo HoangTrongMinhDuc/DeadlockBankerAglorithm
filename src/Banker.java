@@ -12,6 +12,7 @@ public class Banker {
     private int nProc;
     private Stack<Integer> stack;
     private ArrayList<String> listSafeSate = new ArrayList<>();
+    private int sysStatus = 0;
 
     public Banker(){}
     public Banker(int[][] maxRes, int[][] aloRes, int[] avaRes){
@@ -23,10 +24,12 @@ public class Banker {
         this.markedProc = new boolean[this.nProc];
         this.stack = new Stack<>();
         this.needRes = new int[this.nProc][this.nRes];
-        for (int i = 0; i < this.nProc; i++)
-            for (int j = 0; j < this.nRes; j++)
-                needRes[i][j] = maxRes[i][j] - aloRes[i][j];
-        bankerOp();
+        if(isRightState(this.maxRes, this.aloRes)){
+            for (int i = 0; i < this.nProc; i++)
+                for (int j = 0; j < this.nRes; j++)
+                    needRes[i][j] = maxRes[i][j] - aloRes[i][j];
+            bankerOp();
+        }
     }
 
     public Banker(int[][] maxRes, int[][] aloRes, int[] avaRes, int reqPro, int[] reqRes){
@@ -40,25 +43,43 @@ public class Banker {
         for(int i = 0; i < this.nRes; i++){
             this.aloRes[reqPro-1][i] += reqRes[i];
         }
-        this.needRes = new int[this.nProc][this.nRes];
-        for (int i = 0; i < this.nProc; i++)
-            for (int j = 0; j < this.nRes; j++)
-                this.needRes[i][j] = this.maxRes[i][j] - this.aloRes[i][j];
-        boolean isEnoughRes = true;
-        for(int i = 0; i< reqRes.length; i++){
-            if(reqRes[i] > avaRes[i]){
-                isEnoughRes = false;
-                break;
-            }
-        }
-        if(isEnoughRes){
+        if(isRightState(this.maxRes, this.aloRes)){
+            this.needRes = new int[this.nProc][this.nRes];
+            for (int i = 0; i < this.nProc; i++)
+                for (int j = 0; j < this.nRes; j++)
+                    this.needRes[i][j] = this.maxRes[i][j] - this.aloRes[i][j];
+            boolean isEnoughRes = true;
             for(int i = 0; i< reqRes.length; i++){
-                this.avaRes[i] -= reqRes[i];
+                if(reqRes[i] > avaRes[i]){
+                    isEnoughRes = false;
+                    break;
+                }
             }
-            bankerOp();
+            if(isEnoughRes){
+                for(int i = 0; i< reqRes.length; i++){
+                    this.avaRes[i] -= reqRes[i];
+                }
+                bankerOp();
+            }else {
+                this.sysStatus = 2;
+            }
         }
+    }
 
+    private boolean isRightState(int[][] maxRes, int[][] aloRes){
+        for(int i = 0; i < maxRes.length; i++){
+            for(int j = 0; j < maxRes[0].length; j++){
+                if(maxRes[i][j] < aloRes[i][j]){
+                    this.sysStatus = 3;
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
+    public int getSystemStatus(){
+        return this.sysStatus;
     }
 
     public ArrayList<String> getListSafeSate() {
@@ -105,6 +126,7 @@ public class Banker {
                 if (i != (this.nProc - 1))
                     state += " => ";
             }
+            this.sysStatus = 1;
             this.listSafeSate.add(state);
         }
     }
